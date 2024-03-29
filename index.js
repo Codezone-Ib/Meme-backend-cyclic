@@ -6,15 +6,13 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import http from 'http';
 import multer from 'multer';
-import { v2 as cloudinary } from 'cloudinary';
+import pkg from 'cloudinary';
+const cloudinary = pkg;
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import path from 'path';
 import moment from 'moment';
 import { createWorker } from 'tesseract.js';
 import Score from './schema/score-schema.js';
-import passport from 'passport';
-import TwitterStrategy from 'passport-twitter';
-import expressSession from 'express-session';
 
 const app = express();
 const server = http.createServer(app);
