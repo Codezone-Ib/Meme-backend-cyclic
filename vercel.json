@@ -2,7 +2,7 @@
    "version": 2,
    "name": "backend",
    "builds": [
-     { "src": "index.js", "use": "@vercel/node", "config": { "installCommand": "npm install --force" } }
+     { "src": "index.js", "use": "@vercel/node", "config": { "installCommand": "npm install --legacy-peer-deps" } }
    ],
    "rewrites": [
      { "source": "/(.*)", "destination": "/index.js" }
