@@ -6,13 +6,14 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import http from 'http';
 import multer from 'multer';
-import pkg from 'cloudinary';
-const cloudinary = pkg;
+import {v2 as cloudinary} from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import path from 'path';
 import moment from 'moment';
 import { createWorker } from 'tesseract.js';
+import morgan from 'morgan';
 import Score from './schema/score-schema.js';
+import User from './schema/user-schema.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -22,6 +23,7 @@ dotenv.config();
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
+app.use(morgan('dev'));
 
 const username = process.env.DB_USERNAME;
 const password = process.env.DB_PASSWORD;
@@ -56,7 +58,6 @@ const storage = new CloudinaryStorage({
   },
 });
 
-// Configure multer to use cloudinary storage
 const parser = multer({ storage: storage });
 
 // Inside the /upload route handler
@@ -162,6 +163,44 @@ app.get('/leaderboard', async (req, res) => {
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     res.status(500).json({ error: 'Failed to fetch leaderboard' });
+  }
+});
+
+app.post('/adduser', async (req, res) => {
+  try {
+    const { loggedInUserName, loggedInUserEmail, facebookHandle, twitterHandle } = req.body;
+
+    // Check if handles are provided in the request
+    if (facebookHandle || twitterHandle) {
+      // If handles are provided, update the user or create if it doesn't exist
+      const updatedUser = await User.findOneAndUpdate(
+        { loggedInUserEmail },
+        { $set: { loggedInUserName, facebookHandle, twitterHandle } },
+        { new: true, upsert: true }
+      );
+    } else {
+      // If no handles are provided, check if the user exists
+      const existingUser = await User.findOne({ loggedInUserEmail });
+      if (existingUser) {
+        // If user exists and no handles are provided, return a message indicating user already exists
+        return res.status(201).json({ message: 'User already exists' });
+      }
+      
+      // If user doesn't exist and no handles are provided, create a new user
+      const newUser = new User({
+        loggedInUserName,
+        loggedInUserEmail,
+        // Other user properties as needed
+      });
+      await newUser.save();
+    }
+
+    // Send a success response
+    res.status(200).json({ message: 'User created/updated successfully' });
+  } catch (error) {
+    // Handle any errors
+    console.error('Error creating/updating user:', error);
+    res.status(500).json({ error: 'Failed to create/update user' });
   }
 });
 
