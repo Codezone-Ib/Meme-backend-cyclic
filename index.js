@@ -64,6 +64,9 @@ const parser = multer({ storage: storage });
 
 // Inside the /upload route handler
 app.post('/upload', parser.single('image'), async function (req, res) {
+
+  console.log('Resolved path to wasm file:', path.join(__dirname, 'public/tesseract-core-simd.wasm'));
+
   try {
     // Check if file is uploaded
     if (!req.file) {
