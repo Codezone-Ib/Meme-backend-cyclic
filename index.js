@@ -31,7 +31,7 @@ const password = process.env.DB_PASSWORD;
 
 Connection(username, password);
 
-// app.use(express.static('public'));
+app.use(express.static('public'));
 
 const generatePublicId = (req, file) => {
   // Get the original file extension
