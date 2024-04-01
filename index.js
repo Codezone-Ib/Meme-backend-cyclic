@@ -76,6 +76,8 @@ app.post('/upload', parser.single('image'), async function (req, res) {
       langPath: path.join(__dirname, 'public'),
       corePath: path.join(__dirname, 'public/tesseract-core-simd.wasm'),
     });
+    console.log('Resolved path to wasm file:', path.join(__dirname, 'public/tesseract-core-simd.wasm'));
+
 
     // Extract text from the uploaded image
     const { data: { text } } = await worker.recognize(req.file.path);
