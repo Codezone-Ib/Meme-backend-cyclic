@@ -8,6 +8,7 @@ import http from 'http';
 import multer from 'multer';
 import {v2 as cloudinary} from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import { fileURLToPath } from 'url';
 import path from 'path';
 import moment from 'moment';
 import { createWorker } from 'tesseract.js';
@@ -58,6 +59,7 @@ const storage = new CloudinaryStorage({
   },
 });
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const parser = multer({ storage: storage });
 
 // Inside the /upload route handler
@@ -71,6 +73,8 @@ app.post('/upload', parser.single('image'), async function (req, res) {
     // Initialize Tesseract.js worker
     const worker = await createWorker('eng', 1, {
       logger: m => console.log(m), // Optional: log progress and errors
+      langPath: path.join(__dirname, 'public'),
+      corePath: path.join(__dirname, 'public/tesseract-core-simd.wasm'),
     });
 
     // Extract text from the uploaded image
