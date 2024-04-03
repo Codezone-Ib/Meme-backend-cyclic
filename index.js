@@ -123,43 +123,53 @@ app.post('/upload', parser.single('image'), async function (req, res) {
 });
 
 app.post('/save-score', async function (req, res) {
-  const { score, loggedInUserName, loggedInUserEmail, twitterHandle, facebookHandle, imageUrl  } = req.body;
+  const { score, loggedInUserName, loggedInUserEmail, twitterHandle, facebookHandle, imageUrl } = req.body;
 
   if (!score) {
-    return res.status(400).json({ error: 'Score is required' });
+      return res.status(400).json({ error: 'Score is required' });
   }
   if (!loggedInUserEmail) {
-    return res.status(400).json({ error: 'loggedInUserEmail is required' });
+      return res.status(400).json({ error: 'loggedInUserEmail is required' });
   }
   if (!imageUrl) {
-    return res.status(400).json({ error: 'imageUrl is required' });
+      return res.status(400).json({ error: 'imageUrl is required' });
   }
 
   try {
+      // Check if a Score object with the same loggedInUserEmail exists
+      let existingScore = await Score.findOne({ loggedInUserEmail });
 
-    const existingScore = await Score.findOne({ score, loggedInUserEmail });
-    if (existingScore) {
-      return res.status(400).json({ error: 'This score has already been uploaded' });
-    }
+      if (existingScore) {
+          // Update existing Score object
+          existingScore.score = score;
+          existingScore.loggedInUserName = loggedInUserName;
+          existingScore.twitterHandle = twitterHandle;
+          existingScore.facebookHandle = facebookHandle;
+          existingScore.imageUrl = imageUrl;
+          existingScore.timestamp = new Date();
+          await existingScore.save();
+          console.log('Existing Score updated:', existingScore);
+          return res.json({ message: 'Score updated successfully' });
+      }
 
-    console.log('Existing Score:', existingScore);
+      // If no existing score found, create a new Score object
+      const newScore = new Score({
+          score,
+          loggedInUserName,
+          loggedInUserEmail,
+          twitterHandle,
+          facebookHandle,
+          imageUrl,
+          timestamp: new Date(),
+      });
 
-    const newScore = new Score({
-      score: score,
-      loggedInUserName: loggedInUserName,
-      loggedInUserEmail: loggedInUserEmail,
-      twitterHandle: twitterHandle,
-      facebookHandle: facebookHandle,
-      imageUrl: imageUrl,
-      timestamp: new Date(),
-    });
+      await newScore.save();
+      console.log('New Score created:', newScore);
+      return res.json({ message: 'Score saved successfully' });
 
-    await newScore.save();
-    console.log('Score saved successfully');
-    res.json({ message: 'Score saved successfully' });
   } catch (dbError) {
-    console.error('Error saving score to database:', dbError);
-    res.status(500).json({ error: 'Failed to save score to database' });
+      console.error('Error saving score to database:', dbError);
+      return res.status(500).json({ error: 'Failed to save score to database' });
   }
 });
 
@@ -212,6 +222,25 @@ app.post('/adduser', async (req, res) => {
     res.status(500).json({ error: 'Failed to create/update user' });
   }
 });
+
+app.post('/login', async (req, res) => {
+  const { loggedInUserEmail } = req.body;
+  await User.findOneAndUpdate(
+    { loggedInUserEmail },
+    { $set: { isLoggedIn: true } }
+  );
+  res.status(200).json({ message: 'User login status updated' });
+});
+
+app.post('/logout', async (req, res) => {
+  const { loggedInUserEmail } = req.body;
+  await User.findOneAndUpdate(
+    { loggedInUserEmail },
+    { $set: { isLoggedIn: false } }
+  );
+  res.status(200).json({ message: 'User logout status updated' });
+});
+
 
 // // Example protected route
 // app.get('/protected', ensureAuthenticated, (req, res) => {

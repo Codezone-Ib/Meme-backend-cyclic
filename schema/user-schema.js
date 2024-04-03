@@ -21,6 +21,10 @@ const userSchema = mongoose.Schema({
     type: String,
     required: false,
   },
+  isLoggedIn: {
+    type: Boolean,
+    default: false,
+  }
 })
 
 const User = mongoose.model('user', userSchema)
