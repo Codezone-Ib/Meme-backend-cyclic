@@ -64,66 +64,84 @@ const parser = multer({ storage: storage });
 
 // Inside the /upload route handler
 app.post('/upload', parser.single('image'), async function (req, res) {
-
   console.log('Resolved path to wasm file:', path.join(__dirname, 'public/tesseract-core-simd.wasm'));
 
   try {
-    // Check if file is uploaded
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
+      // Check if file is uploaded
+      if (!req.file) {
+          return res.status(400).json({ error: 'No file uploaded' });
+      }
 
-    // Initialize Tesseract.js worker
-    const worker = await createWorker('eng', 1, {
-      logger: m => console.log(m), // Optional: log progress and errors
-      langPath: path.join(__dirname, 'public'),
-      corePath: path.join(__dirname, 'public/tesseract-core-simd.wasm'),
-    });
-    console.log('Resolved path to wasm file:', path.join(__dirname, 'public/tesseract-core-simd.wasm'));
+      // Initialize Tesseract.js worker
+      const worker = await createWorker('eng', 1, {
+          logger: m => console.log(m), // Optional: log progress and errors
+          langPath: path.join(__dirname, 'public'),
+          corePath: path.join(__dirname, 'public/tesseract-core-simd.wasm'),
+      });
+      console.log('Resolved path to wasm file:', path.join(__dirname, 'public/tesseract-core-simd.wasm'));
 
+      // Extract text from the uploaded image
+      const { data: { text } } = await worker.recognize(req.file.path);
+      console.log('Extracted text:', text);
 
-    // Extract text from the uploaded image
-    const { data: { text } } = await worker.recognize(req.file.path);
-    
-    console.log('Extracted text:', text);
+      // First, try to find the score after "SCORE"
+      let scoreMatch;
+      let score;
+      let gameName;
 
-    const scoreMatch = text.match(/SCORE (\d+)/);
-    if (!scoreMatch) {
-      console.error('No score found in the extracted text');
-      return res.status(400).json({ error: 'No score found in the extracted text' });
-    }
+      if (scoreMatch = text.match(/SCORE (\d+)/)) {
+        score = parseInt(scoreMatch[1]);
+        gameName = "Gun Smoke";
+      } else if(scoreMatch = text.match(/CORE-(\d+)/)) {
+        score = parseInt(scoreMatch[1]);
+        gameName = "Castlevania";
+      } else if(scoreMatch = text.match(/CORE=(\d+)/)){
+        score = parseInt(scoreMatch[1]);
+        gameName = "Castlevania";
+      } else if(scoreMatch = text.match(/ip (\d+)/)){
+        score = parseInt(scoreMatch[1]);
+        gameName = "Contra";
+      } else if(scoreMatch = text.match(/1p (\d+)/)){
+        score = parseInt(scoreMatch[1]);
+        gameName = "Contra";
+      }
+      else {
+        // If no match is found after trying both patterns, handle it accordingly
+        console.error('No score found in the extracted text');
+        return res.status(400).json({ error: 'No score found in the extracted text' });
+      }
 
-    const score = parseInt(scoreMatch[1]);
-    if (isNaN(score)) {
-      console.error('Invalid score extracted');
-      return res.status(400).json({ error: 'Invalid score extracted' });
-    }
+      if (score === null || isNaN(score)) {
+          console.error('Score not found or invalid');
+          return res.status(400).json({ error: 'Score not found or invalid' });
+      }
 
-    console.log('Score:', score);
+      console.log('Score:', score);
 
-    const { loggedInUserEmail } = req.body;
-        
-    const existingScore = await Score.findOne({ score, loggedInUserEmail });
-    if (existingScore) {
-      return res.status(400).json({ error: 'Score already exists. Please try the game again and score differently.' });
-    }
+      const { loggedInUserEmail } = req.body;
 
-    console.log('Existing Score:', existingScore);
+      const existingScore = await Score.findOne({ score, loggedInUserEmail });
+      if (existingScore) {
+          return res.status(400).json({ error: 'Score already exists. Please try the game again and score differently.' });
+      }
 
-    const imageUrl = req.file.path;
+      console.log('Existing Score:', existingScore);
 
-    res.json({ text, score, imageUrl });
+      const imageUrl = req.file.path;
 
-    // Terminate worker after extraction
-    await worker.terminate();
+      res.json({ text, score, gameName,imageUrl });
+
+      // Terminate worker after extraction
+      await worker.terminate();
   } catch (error) {
-    console.error('Error extracting text:', error);
-    res.status(500).json({ error: 'Failed to extract text from image' });
+      console.error('Error extracting text:', error);
+      res.status(500).json({ error: 'Failed to extract text from image' });
   }
 });
 
+
 app.post('/save-score', async function (req, res) {
-  const { score, loggedInUserName, loggedInUserEmail, twitterHandle, facebookHandle, imageUrl } = req.body;
+  const { score, gameName, loggedInUserName, loggedInUserEmail, twitterHandle, facebookHandle, imageUrl } = req.body;
 
   if (!score) {
       return res.status(400).json({ error: 'Score is required' });
@@ -137,11 +155,12 @@ app.post('/save-score', async function (req, res) {
 
   try {
       // Check if a Score object with the same loggedInUserEmail exists
-      let existingScore = await Score.findOne({ loggedInUserEmail });
+      let existingScore = await Score.findOne({ gameName ,loggedInUserEmail });
 
       if (existingScore) {
           // Update existing Score object
           existingScore.score = score;
+          existingScore.gameName = gameName;
           existingScore.loggedInUserName = loggedInUserName;
           existingScore.twitterHandle = twitterHandle;
           existingScore.facebookHandle = facebookHandle;
@@ -155,6 +174,7 @@ app.post('/save-score', async function (req, res) {
       // If no existing score found, create a new Score object
       const newScore = new Score({
           score,
+          gameName,
           loggedInUserName,
           loggedInUserEmail,
           twitterHandle,
@@ -175,9 +195,24 @@ app.post('/save-score', async function (req, res) {
 
 app.get('/leaderboard', async (req, res) => {
   try {
-    const topScores = await Score.find({})
-      .sort({ score: -1 }) // Sort scores in descending order
-      .limit(10); // Limit to top 10 scores
+    const topScoresContra = await Score.find({ gameName: 'Contra' })
+      .sort({ score: -1 })
+      .limit(3);
+
+    const topScoresGunSmoke = await Score.find({ gameName: 'Gun Smoke' })
+      .sort({ score: -1 })
+      .limit(3);
+
+    const topScoresCastlevania = await Score.find({ gameName: 'Castlevania' })
+      .sort({ score: -1 })
+      .limit(3);
+
+    const topScores = {
+      Contra: topScoresContra,
+      'Gun Smoke': topScoresGunSmoke,
+      Castlevania: topScoresCastlevania,
+    };
+
     res.json(topScores);
   } catch (error) {
     console.error('Error fetching leaderboard:', error);

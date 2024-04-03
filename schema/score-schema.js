@@ -29,6 +29,10 @@ const scoreSchema = mongoose.Schema({
     type: String,
     required: true,
   },
+  gameName: {
+    type: String,
+    required: true,
+  },
 })
 
 const Score = mongoose.model('score', scoreSchema)
