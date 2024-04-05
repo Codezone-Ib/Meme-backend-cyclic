@@ -195,17 +195,20 @@ app.post('/save-score', async function (req, res) {
 
 app.get('/leaderboard', async (req, res) => {
   try {
-    const topScoresContra = await Score.find({ gameName: 'Contra' })
-      .sort({ score: -1 })
-      .limit(3);
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000); // Calculate the date two days ago
 
-    const topScoresGunSmoke = await Score.find({ gameName: 'Gun Smoke' })
+    // Find scores uploaded less than two days ago
+    const topScoresContra = await Score.find({ gameName: 'Contra', timestamp: { $gte: twoDaysAgo } })
       .sort({ score: -1 })
-      .limit(3);
+      .limit(2);
 
-    const topScoresCastlevania = await Score.find({ gameName: 'Castlevania' })
+    const topScoresGunSmoke = await Score.find({ gameName: 'Gun Smoke', timestamp: { $gte: twoDaysAgo } })
       .sort({ score: -1 })
-      .limit(3);
+      .limit(2);
+
+    const topScoresCastlevania = await Score.find({ gameName: 'Castlevania', timestamp: { $gte: twoDaysAgo } })
+      .sort({ score: -1 })
+      .limit(2);
 
     const topScores = {
       Contra: topScoresContra,
